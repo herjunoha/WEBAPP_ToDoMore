@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import { supabase } from '@/lib/supabase'
-import { type Streak } from '@/types/streak'
+import { type Streak, type StreakDB, streakFromDB } from '@/types/streak'
 
 interface StreaksState {
   current: Streak | null
@@ -41,7 +41,8 @@ export const fetchStreak = createAsyncThunk(
         }
       }
 
-      return data
+      // Transform database record to frontend format
+      return streakFromDB(data as StreakDB)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch streak'
       return rejectWithValue(errorMessage)
@@ -85,7 +86,7 @@ export const updateStreakOnTaskCompletion = createAsyncThunk(
 
           // If last completion was today, don't update
           if (lastDateString === todayString) {
-            return streakData
+            return streakFromDB(streakData as StreakDB)
           }
 
           // If last completion was yesterday, increment streak
@@ -122,7 +123,7 @@ export const updateStreakOnTaskCompletion = createAsyncThunk(
           .select()
 
         if (updateError) throw updateError
-        return updatedData?.[0] || streakData
+        return updatedData?.[0] ? streakFromDB(updatedData[0] as StreakDB) : streakFromDB(streakData as StreakDB)
       } else {
         // Create new streak record
         const { data: newData, error: createError } = await supabase
@@ -138,7 +139,7 @@ export const updateStreakOnTaskCompletion = createAsyncThunk(
           .select()
 
         if (createError) throw createError
-        return newData?.[0]
+        return newData?.[0] ? streakFromDB(newData[0] as StreakDB) : null
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update streak'

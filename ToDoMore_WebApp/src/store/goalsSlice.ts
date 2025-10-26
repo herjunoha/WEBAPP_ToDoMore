@@ -78,11 +78,10 @@ export const updateGoal = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const updateData: Record<string, any> = {
-        title: goalData.title,
-        description: goalData.description,
-        status: goalData.status,
-      }
+      const updateData: Record<string, any> = {}
+      if (goalData.title !== undefined) updateData.title = goalData.title
+      if (goalData.description !== undefined) updateData.description = goalData.description
+      if (goalData.status !== undefined) updateData.status = goalData.status
 
       if (goalData.specific || goalData.measurable || goalData.achievable || goalData.relevant || goalData.timeBound) {
         updateData.smart = {
@@ -101,7 +100,8 @@ export const updateGoal = createAsyncThunk(
         .select()
 
       if (error) throw error
-      return data?.[0] || null
+      // Transform database record to frontend format
+      return data?.[0] ? goalFromDB(data[0] as GoalDB) : null
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update goal'
       return rejectWithValue(errorMessage)
@@ -173,7 +173,7 @@ const goalsSlice = createSlice({
       .addCase(updateGoal.fulfilled, (state, action) => {
         state.isLoading = false
         if (action.payload) {
-          const index = state.items.findIndex((g) => g.id === action.payload.id)
+          const index = state.items.findIndex((g) => g.id === action.payload!.id)
           if (index !== -1) {
             state.items[index] = action.payload
           }
