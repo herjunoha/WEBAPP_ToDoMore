@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { createTask, updateTask } from '@/store/tasksSlice'
+import { updateGoalProgress } from '@/store/goalsSlice'
 import { updateStreakOnTaskCompletion } from '@/store/streaksSlice'
 import { type AppDispatch, type RootState } from '@/store/store'
 import { type Task, type TaskFormData } from '@/types/task'
@@ -88,6 +89,7 @@ export function TaskForm({ open, onOpenChange, task, userId }: TaskFormProps) {
       }
 
       const isCompletingTask = task && task.status !== 'Completed' && formData.status === 'Completed'
+      const goalChanged = task && task.goalId !== formData.goalId
 
       if (task) {
         await dispatch(updateTask({ taskId: task.id, taskData: formData })).unwrap()
@@ -97,12 +99,27 @@ export function TaskForm({ open, onOpenChange, task, userId }: TaskFormProps) {
           await dispatch(updateStreakOnTaskCompletion(userId)).unwrap()
         }
         
+        // Update goal progress if task is linked to a goal or goal changed
+        if (formData.goalId) {
+          await dispatch(updateGoalProgress(formData.goalId)).unwrap()
+        }
+        // If goal was changed, update old goal progress too
+        if (goalChanged && task.goalId) {
+          await dispatch(updateGoalProgress(task.goalId)).unwrap()
+        }
+        
         toast({
           title: 'Task updated',
           description: 'Your task has been successfully updated',
         })
       } else {
-        await dispatch(createTask({ userId, taskData: formData })).unwrap()
+        const newTask = await dispatch(createTask({ userId, taskData: formData })).unwrap()
+        
+        // Update goal progress if new task is linked to a goal
+        if (newTask && formData.goalId) {
+          await dispatch(updateGoalProgress(formData.goalId)).unwrap()
+        }
+        
         toast({
           title: 'Task created',
           description: 'Your new task has been created successfully',

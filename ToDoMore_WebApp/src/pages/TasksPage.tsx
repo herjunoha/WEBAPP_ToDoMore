@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { fetchTasks, deleteTask } from '@/store/tasksSlice'
-import { fetchGoals } from '@/store/goalsSlice'
+import { fetchGoals, updateGoalProgress } from '@/store/goalsSlice'
 import { type RootState, type AppDispatch } from '@/store/store'
 import { TaskForm } from '@/components/TaskForm'
 import { Button } from '@/components/ui/button'
@@ -35,9 +35,16 @@ export function TasksPage() {
   }
 
   const handleDeleteTask = async (taskId: string) => {
+    const taskToDelete = tasks.find(t => t.id === taskId)
     if (confirm('Are you sure you want to delete this task?')) {
       try {
         await dispatch(deleteTask(taskId)).unwrap()
+        
+        // Update goal progress if task was linked to a goal
+        if (taskToDelete?.goalId) {
+          await dispatch(updateGoalProgress(taskToDelete.goalId)).unwrap()
+        }
+        
         toast({
           title: 'Task deleted',
           description: 'The task has been removed',

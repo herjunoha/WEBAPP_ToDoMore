@@ -54,9 +54,10 @@ export const updateStreakOnTaskCompletion = createAsyncThunk(
   'streaks/updateStreakOnTaskCompletion',
   async (userId: string, { rejectWithValue }) => {
     try {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const todayString = today.toISOString().split('T')[0]
+      // Use UTC time to avoid timezone issues
+      const now = new Date()
+      const todayUTC = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
+      const todayString = todayUTC.toISOString().split('T')[0]
 
       // Fetch current streak
       const { data: streakData, error: streakError } = await supabase
@@ -80,9 +81,9 @@ export const updateStreakOnTaskCompletion = createAsyncThunk(
 
         // Check if we already have a streak entry for today
         if (lastCompletedDate) {
-          const lastDate = new Date(lastCompletedDate)
-          lastDate.setHours(0, 0, 0, 0)
-          const lastDateString = lastDate.toISOString().split('T')[0]
+          // Compare dates in UTC to avoid timezone issues
+          const lastDateUTC = new Date(lastCompletedDate + 'T00:00:00Z')
+          const lastDateString = lastDateUTC.toISOString().split('T')[0]
 
           // If last completion was today, don't update
           if (lastDateString === todayString) {
@@ -90,14 +91,14 @@ export const updateStreakOnTaskCompletion = createAsyncThunk(
           }
 
           // If last completion was yesterday, increment streak
-          const yesterday = new Date(today)
-          yesterday.setDate(yesterday.getDate() - 1)
-          const yesterdayString = yesterday.toISOString().split('T')[0]
+          const yesterdayUTC = new Date(todayUTC)
+          yesterdayUTC.setUTCDate(yesterdayUTC.getUTCDate() - 1)
+          const yesterdayString = yesterdayUTC.toISOString().split('T')[0]
 
           if (lastDateString === yesterdayString) {
             currentStreak += 1
           } else {
-            // Otherwise, reset streak to 1
+            // Otherwise, reset streak to 1 (streak was broken)
             currentStreak = 1
           }
         } else {

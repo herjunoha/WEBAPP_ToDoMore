@@ -109,6 +109,39 @@ export const updateGoal = createAsyncThunk(
   }
 )
 
+export const updateGoalProgress = createAsyncThunk(
+  'goals/updateGoalProgress',
+  async (goalId: string, { rejectWithValue }) => {
+    try {
+      // Fetch all tasks linked to this goal
+      const { data: tasks, error: tasksError } = await supabase
+        .from('tasks')
+        .select('status')
+        .eq('goal_id', goalId)
+
+      if (tasksError) throw tasksError
+
+      // Calculate progress
+      const totalTasks = tasks?.length || 0
+      const completedTasks = tasks?.filter(t => t.status === 'Completed').length || 0
+      const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+      // Update goal progress in database
+      const { data, error } = await supabase
+        .from('goals')
+        .update({ progress })
+        .eq('id', goalId)
+        .select()
+
+      if (error) throw error
+      return data?.[0] ? goalFromDB(data[0] as GoalDB) : null
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update goal progress'
+      return rejectWithValue(errorMessage)
+    }
+  }
+)
+
 export const deleteGoal = createAsyncThunk(
   'goals/deleteGoal',
   async (goalId: string, { rejectWithValue }) => {
@@ -192,6 +225,23 @@ const goalsSlice = createSlice({
         state.items = state.items.filter((g) => g.id !== action.payload)
       })
       .addCase(deleteGoal.rejected, (state, action) => {
+        state.isLoading = false
+        state.error = action.payload as string
+      })
+      .addCase(updateGoalProgress.pending, (state) => {
+        state.isLoading = true
+        state.error = null
+      })
+      .addCase(updateGoalProgress.fulfilled, (state, action) => {
+        state.isLoading = false
+        if (action.payload) {
+          const index = state.items.findIndex((g) => g.id === action.payload!.id)
+          if (index !== -1) {
+            state.items[index] = action.payload
+          }
+        }
+      })
+      .addCase(updateGoalProgress.rejected, (state, action) => {
         state.isLoading = false
         state.error = action.payload as string
       })
